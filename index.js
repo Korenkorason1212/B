@@ -274,4 +274,5 @@ client.on('interactionCreate', async interaction => {
 });
 
 // Log the bot into Discord
-client.login('');
+// Make sure it looks exactly like this at the bottom of index.js
+client.login(TOKEN);
