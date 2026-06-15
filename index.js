@@ -8,7 +8,7 @@ const {
     Routes,
     EmbedBuilder 
 } = require('discord.js');
-const fs = require('fs'); // Added to read and write files locally
+const fs = require('fs'); 
 const path = require('path');
 
 // 1. Initialize Client with message content intent enabled to scan chat text
@@ -21,8 +21,13 @@ const client = new Client({
     ]
 });
 
-const TOKEN = process.env.DISCORD_TOKEN; // Safe! No actual token is typed here.
-const CLIENT_ID = '1510232536876585070';
+// --- BULLETPROOF TOKEN CLEANING ROUTINE ---
+// This cleans invisible newlines, spaces, or quotes added by Render's dashboard copy-paste layout
+const rawToken = process.env.DISCORD_TOKEN || '';
+const TOKEN = rawToken.replace(/[\n\r"]/g, '').trim(); 
+
+const CLIENT_ID = '1510232536876585070'; // Hardcoded Client ID
+
 // Separate channel IDs for each command
 const STRIKE_LOG_CHANNEL_ID = '1439406646932541480'; 
 const PROMO_LOG_CHANNEL_ID = '1515941950530785302'; 
@@ -40,7 +45,6 @@ function loadTriggers() {
             customTriggers = new Map(Object.entries(parsed));
             console.log(`Loaded ${customTriggers.size} saved triggers successfully.`);
         } else {
-            // Create an empty file if it doesn't exist yet
             fs.writeFileSync(TRIGGERS_FILE, JSON.stringify({}), 'utf8');
             customTriggers = new Map();
         }
@@ -273,6 +277,5 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-// Log the bot into Discord
-// Make sure it looks exactly like this at the bottom of index.js
+// Log the bot into Discord safely using the fully cleaned token string
 client.login(TOKEN);
