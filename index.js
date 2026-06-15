@@ -21,10 +21,10 @@ const client = new Client({
     ]
 });
 
-// --- BULLETPROOF TOKEN CLEANING ROUTINE ---
-// This cleans invisible newlines, spaces, or quotes added by Render's dashboard copy-paste layout
+// --- FORCE CLEANING ENVIRONMENT VARIABLES ---
 const rawToken = process.env.DISCORD_TOKEN || '';
-const TOKEN = rawToken.replace(/[\n\r"]/g, '').trim(); 
+// Cleans hidden tabs, line breaks, invisible spaces, and quote marks completely
+const TOKEN = rawToken.replace(/[\n\r\t"]/g, '').trim(); 
 
 const CLIENT_ID = '1510232536876585070'; // Hardcoded Client ID
 
@@ -277,5 +277,9 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-// Log the bot into Discord safely using the fully cleaned token string
-client.login(TOKEN);
+// Run login safely
+if (!TOKEN) {
+    console.error("CRITICAL ERROR: The DISCORD_TOKEN variable is missing from your environment setup!");
+} else {
+    client.login(TOKEN);
+}
