@@ -10,9 +10,9 @@ const {
 } = require('discord.js');
 const fs = require('fs'); 
 const path = require('path');
-const http = require('http'); // ADDED: Built-in module to create a web server
+const http = require('http'); // Built-in module to create a web server
 
-// --- ADDED: LIGHTWEIGHT WEB SERVER FOR RENDER & CRON-JOB.ORG ---
+// --- LIGHTWEIGHT WEB SERVER FOR RENDER & CRON-JOB.ORG ---
 // This keeps a port open so Render marks the bot as "Deployed" (Green Circle)
 const PORT = process.env.PORT || 10000;
 http.createServer((req, res) => {
@@ -176,7 +176,8 @@ client.on('interactionCreate', async interaction => {
         // Permanent backup: Write them immediately to triggers.json
         saveTriggers();
 
-        return safeReply replay(`✅ Trigger updated! Whenever anyone types \`${triggerPhrase}\`, I will reply with: "${responsePhrase}". It is saved permanently.`);
+        // FIX: Removed the typo 'replay' from this line
+        return safeReply(`✅ Trigger updated! Whenever anyone types \`${triggerPhrase}\`, I will reply with: "${responsePhrase}". It is saved permanently.`);
     }
 
     // --- RULE CHECKER FOR MODERATION COMMANDS (STRIKE / PROMOTION) ---
