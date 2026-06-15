@@ -10,6 +10,17 @@ const {
 } = require('discord.js');
 const fs = require('fs'); 
 const path = require('path');
+const http = require('http'); // ADDED: Built-in module to create a web server
+
+// --- ADDED: LIGHTWEIGHT WEB SERVER FOR RENDER & CRON-JOB.ORG ---
+// This keeps a port open so Render marks the bot as "Deployed" (Green Circle)
+const PORT = process.env.PORT || 10000;
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Bot is awake and running smoothly!');
+}).listen(PORT, () => {
+    console.log(`Web server is listening live on port ${PORT}`);
+});
 
 // 1. Initialize Client with message content intent enabled to scan chat text
 const client = new Client({
@@ -23,7 +34,6 @@ const client = new Client({
 
 // --- FORCE CLEANING ENVIRONMENT VARIABLES ---
 const rawToken = process.env.DISCORD_TOKEN || '';
-// Cleans hidden tabs, line breaks, invisible spaces, and quote marks completely
 const TOKEN = rawToken.replace(/[\n\r\t"]/g, '').trim(); 
 
 const CLIENT_ID = '1510232536876585070'; // Hardcoded Client ID
@@ -166,7 +176,7 @@ client.on('interactionCreate', async interaction => {
         // Permanent backup: Write them immediately to triggers.json
         saveTriggers();
 
-        return safeReply(`✅ Trigger updated! Whenever anyone types \`${triggerPhrase}\`, I will reply with: "${responsePhrase}". It is saved permanently.`);
+        return safeReply replay(`✅ Trigger updated! Whenever anyone types \`${triggerPhrase}\`, I will reply with: "${responsePhrase}". It is saved permanently.`);
     }
 
     // --- RULE CHECKER FOR MODERATION COMMANDS (STRIKE / PROMOTION) ---
