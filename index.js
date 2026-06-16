@@ -12,12 +12,16 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http'); // Built-in module to create a web server
 
-// --- LIGHTWEIGHT WEB SERVER FOR RENDER & CRON-JOB.ORG ---
-// This keeps a port open so Render marks the bot as "Deployed" (Green Circle)
+// --- LIGHTWEIGHT WEB SERVER WITH PRIVACY POLICY ---
 const PORT = process.env.PORT || 10000;
 http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Bot is awake and running smoothly!');
+    // If they go to your link, show the privacy policy text
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.write("THM Bot - Privacy Policy\n\n");
+    res.write("1. Data Collection: We only process user IDs, message content, and roles in real-time to run commands like /strike, /promotion, and keyword triggers.\n");
+    res.write("2. Data Storage: Trigger words are saved securely in our hosting configuration. Disciplinary data is sent directly to secure logging channels inside the Discord server.\n");
+    res.write("3. Data Removal: Users can request data removal at any time by contacting server management.");
+    res.end();
 }).listen(PORT, () => {
     console.log(`Web server is listening live on port ${PORT}`);
 });
