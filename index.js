@@ -242,8 +242,8 @@ client.on('interactionCreate', async interaction => {
 
         try {
             for (const shirt of targetShirts) {
-                // Query Roblox structural catalog API endpoint to check ownership state
-                const response = await axios.get(`https://inventory.roblox.com/v1/users/${robloxId}/items/1/${shirt.id}/is-owned`).catch(() => null);
+                // FIXED: Changed item type endpoint structure parameter from 1 to 11 (11 is specifically for Classic Shirts)
+                const response = await axios.get(`https://inventory.roblox.com/v1/users/${robloxId}/items/11/${shirt.id}/is-owned`).catch(() => null);
                 
                 if (response && response.data !== undefined) {
                     const isOwned = response.data === true;
