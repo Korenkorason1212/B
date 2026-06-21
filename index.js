@@ -113,7 +113,7 @@ client.once('ready', async () => {
         .addStringOption(option => option.setName('trigger').setDescription('The exact phrase to look out for').setRequired(true))
         .addStringOption(option => option.setName('response').setDescription('The message the bot should reply with').setRequired(true));
 
-    // Define /check command (Changed to String Option for Roblox Username input)
+    // Define /check command
     const checkCommand = new SlashCommandBuilder()
         .setName('check')
         .setDescription('Checks if a Roblox user owns specific shirts.')
@@ -150,22 +150,22 @@ client.on('messageCreate', async message => {
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
-    // Safely defer the reply to handle network delays securely as ephemeral
+    // We changed this deferral to PUBLIC (ephemeral: false) so everyone in the channel can view it
     try {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ ephemeral: false });
     } catch (error) {
         console.error('Failed to defer interaction:', error);
     }
 
     const { commandName, options, member, guild, user } = interaction;
 
-    // Helper function safely modified to ensure all edit replies stay hidden (ephemeral)
+    // Helper function modified so general execution messages are visible to the server channel
     const safeReply = async (content) => {
         try {
             if (interaction.deferred || interaction.replied) {
-                await interaction.editReply({ content, ephemeral: true });
+                await interaction.editReply({ content, embeds: [], ephemeral: false });
             } else {
-                await interaction.reply({ content, ephemeral: true });
+                await interaction.reply({ content, ephemeral: false });
             }
         } catch (err) {
             console.error('Could not send response to user:', err.message);
@@ -205,21 +205,51 @@ client.on('interactionCreate', async interaction => {
         if (!robloxId) {
             return safeReply(`❌ Could not find a valid Roblox account matching the username \`${robloxUsername}\`. Check your spelling!`);
         }
+
+        // Step 2: Group membership verification check (Target Group ID: 14691058)
+        const TARGET_GROUP_ID = 14691058;
+        let isInGroup = false;
+        try {
+            const groupResponse = await axios.get(`https://groups.roblox.com/v2/users/${robloxId}/groups/roles`).catch(() => null);
+            if (groupResponse && groupResponse.data && groupResponse.data.data) {
+                isInGroup = groupResponse.data.data.some(group => group.group && group.group.id === TARGET_GROUP_ID);
+            }
+        } catch (groupErr) {
+            console.error('Error verifying group membership:', groupErr);
+        }
+
+        if (!isInGroup) {
+            const notInGroupEmbed = new EmbedBuilder()
+                .setColor(0xFF0000) // Red
+                .setTitle('Inventory Check Rejected')
+                .setDescription(`❌ **User Is Not In The Group**\n\nThe account **${robloxUsername}** must be a member of group ID \`${TARGET_GROUP_ID}\` to run asset verification checks.`)
+                .setTimestamp();
+
+            if (interaction.deferred || interaction.replied) {
+                return await interaction.editReply({ content: null, embeds: [notInGroupEmbed], ephemeral: false });
+            } else {
+                return await interaction.reply({ embeds: [notInGroupEmbed], ephemeral: false });
+            }
+        }
         
-        // Shirt IDs to check in specific order
-        const targetShirts = ['76577848556585', '107008580501030', '86085110129460'];
+        // Shirt mapping data structure with updated names in order
+        const targetShirts = [
+            { id: '76577848556585', name: 'THM Half Access' },
+            { id: '107008580501030', name: 'THM Full Access' },
+            { id: '86085110129460', name: 'THM Exclusive Access' }
+        ];
         let ownershipResults = [];
 
         try {
-            for (const shirtId of targetShirts) {
+            for (const shirt of targetShirts) {
                 // Query Roblox structural catalog API endpoint to check ownership state
-                const response = await axios.get(`https://inventory.roblox.com/v1/users/${robloxId}/items/1/${shirtId}/is-owned`).catch(() => null);
+                const response = await axios.get(`https://inventory.roblox.com/v1/users/${robloxId}/items/1/${shirt.id}/is-owned`).catch(() => null);
                 
                 if (response && response.data !== undefined) {
                     const isOwned = response.data === true;
-                    ownershipResults.push(`👕 Shirt \`${shirtId}\`: ${isOwned ? '✅ **Owned**' : '❌ *Not Owned*'}`);
+                    ownershipResults.push(`👕 **${shirt.name}**: ${isOwned ? '✅ **Owned**' : '❌ *Not Owned*'}`);
                 } else {
-                    ownershipResults.push(`👕 Shirt \`${shirtId}\`: ⚠️ *Unable to verify (Inventory may be private)*`);
+                    ownershipResults.push(`👕 **${shirt.name}**: ⚠️ *Unable to verify (Inventory may be private)*`);
                 }
             }
 
@@ -229,10 +259,11 @@ client.on('interactionCreate', async interaction => {
                 .setDescription(`Checking shirt ownership for Roblox account **${robloxUsername}** (ID: \`${robloxId}\`):\n\n${ownershipResults.join('\n')}`)
                 .setTimestamp();
 
+            // Formats final delivery payload to be completely public to the text channel
             if (interaction.deferred || interaction.replied) {
-                await interaction.editReply({ content: null, embeds: [checkEmbed], ephemeral: true });
+                await interaction.editReply({ content: null, embeds: [checkEmbed], ephemeral: false });
             } else {
-                await interaction.reply({ embeds: [checkEmbed], ephemeral: true });
+                await interaction.reply({ embeds: [checkEmbed], ephemeral: false });
             }
         } catch (error) {
             console.error('Error running inventory verification check:', error);
