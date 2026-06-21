@@ -150,7 +150,7 @@ client.on('messageCreate', async message => {
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
-    // Safely defer the reply to handle network delays
+    // Safely defer the reply to handle network delays securely as ephemeral
     try {
         await interaction.deferReply({ ephemeral: true });
     } catch (error) {
@@ -159,11 +159,11 @@ client.on('interactionCreate', async interaction => {
 
     const { commandName, options, member, guild, user } = interaction;
 
-    // Helper function to safely send feedback back to the HR user
+    // Helper function safely modified to ensure all edit replies stay hidden (ephemeral)
     const safeReply = async (content) => {
         try {
             if (interaction.deferred || interaction.replied) {
-                await interaction.editReply({ content });
+                await interaction.editReply({ content, ephemeral: true });
             } else {
                 await interaction.reply({ content, ephemeral: true });
             }
@@ -231,7 +231,6 @@ client.on('interactionCreate', async interaction => {
                 .setDescription(`Checking shirt ownership for user <@${targetUser.id}> (Roblox ID: \`${robloxId}\`):\n\n${ownershipResults.join('\n')}`)
                 .setTimestamp();
 
-            // FIXED: Added ephemeral: true flag to editReply so it stays private to the command user only
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply({ content: null, embeds: [checkEmbed], ephemeral: true });
             } else {
