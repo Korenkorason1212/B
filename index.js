@@ -11,6 +11,7 @@ const {
 const fs = require('fs'); 
 const path = require('path');
 const http = require('http'); // Built-in module to create a web server
+const axios = require('axios'); // Required to check Roblox API endpoint
 
 // --- LIGHTWEIGHT WEB SERVER WITH PRIVACY POLICY ---
 const PORT = process.env.PORT || 10000;
@@ -112,13 +113,20 @@ client.once('ready', async () => {
         .addStringOption(option => option.setName('trigger').setDescription('The exact phrase to look out for').setRequired(true))
         .addStringOption(option => option.setName('response').setDescription('The message the bot should reply with').setRequired(true));
 
+    // Define /check command
+    const checkCommand = new SlashCommandBuilder()
+        .setName('check')
+        .setDescription('Checks if a user owns specific Roblox shirts.')
+        .addUserOption(option => option.setName('user').setDescription('The Discord user to check').setRequired(true))
+        .addStringOption(option => option.setName('roblox_id').setDescription('The Roblox User ID of the user').setRequired(true));
+
     // Deploy slash commands globally
     const rest = new REST({ version: '10' }).setToken(TOKEN);
     try {
         console.log('Started refreshing application (/) commands.');
         await rest.put(
             Routes.applicationCommands(CLIENT_ID),
-            { body: [strikeCommand.toJSON(), promotionCommand.toJSON(), triggerCommand.toJSON()] },
+            { body: [strikeCommand.toJSON(), promotionCommand.toJSON(), triggerCommand.toJSON(), checkCommand.toJSON()] },
         );
         console.log('Successfully reloaded application (/) commands.');
     } catch (error) {
@@ -164,6 +172,57 @@ client.on('interactionCreate', async interaction => {
             console.error('Could not send response to user:', err.message);
         }
     };
+
+    // --- HANDLE /CHECK COMMAND ---
+    if (commandName === 'check') {
+        const REQUIRED_ROLE_ID = '1290500754498650166';
+        const targetRole = guild.roles.cache.get(REQUIRED_ROLE_ID);
+        
+        // Find if user has the specific role or a higher ranked role in the hierarchy
+        const hasPermission = member.roles.cache.has(REQUIRED_ROLE_ID) || 
+            (targetRole && member.roles.highest.position >= targetRole.position);
+
+        if (!hasPermission) {
+            return safeReply('❌ You do not have the required role or higher permissions to use this command.');
+        }
+
+        const targetUser = options.getUser('user');
+        const robloxId = options.getString('roblox_id').trim();
+        
+        // Shirt IDs to check in specific order
+        const targetShirts = ['76577848556585', '107008580501030', '86085110129460'];
+        let ownershipResults = [];
+
+        try {
+            for (const shirtId of targetShirts) {
+                // Query Roblox structural catalog API endpoint to check ownership state
+                const response = await axios.get(`https://inventory.roblox.com/v1/users/${robloxId}/items/1/${shirtId}/is-owned`).catch(() => null);
+                
+                if (response && response.data !== undefined) {
+                    const isOwned = response.data === true;
+                    ownershipResults.push(`👕 Shirt \`${shirtId}\`: ${isOwned ? '✅ **Owned**' : '❌ *Not Owned*'}`);
+                } else {
+                    ownershipResults.push(`👕 Shirt \`${shirtId}\`: ⚠️ *Unable to verify (Inventory may be private)*`);
+                }
+            }
+
+            const checkEmbed = new EmbedBuilder()
+                .setColor(0x3498DB) // Blue
+                .setTitle('Roblox Inventory Check')
+                .setDescription(`Checking shirt ownership for user <@${targetUser.id}> (Roblox ID: \`${robloxId}\`):\n\n${ownershipResults.join('\n')}`)
+                .setTimestamp();
+
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply({ content: null, embeds: [checkEmbed] });
+            } else {
+                await interaction.reply({ embeds: [checkEmbed], ephemeral: true });
+            }
+        } catch (error) {
+            console.error('Error running inventory verification check:', error);
+            return safeReply('❌ An error occurred while communicating with the Roblox API handlers.');
+        }
+        return;
+    }
 
     // --- HANDLE /TRIGGER COMMAND ---
     if (commandName === 'trigger') {
