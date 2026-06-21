@@ -113,12 +113,11 @@ client.once('ready', async () => {
         .addStringOption(option => option.setName('trigger').setDescription('The exact phrase to look out for').setRequired(true))
         .addStringOption(option => option.setName('response').setDescription('The message the bot should reply with').setRequired(true));
 
-    // Define /check command
+    // Define /check command (Updated: Only requires the Discord User target now)
     const checkCommand = new SlashCommandBuilder()
         .setName('check')
-        .setDescription('Checks if a user owns specific Roblox shirts.')
-        .addUserOption(option => option.setName('user').setDescription('The Discord user to check').setRequired(true))
-        .addStringOption(option => option.setName('roblox_id').setDescription('The Roblox User ID of the user').setRequired(true));
+        .setDescription('Checks if a tagged member owns specific Roblox shirts.')
+        .addUserOption(option => option.setName('user').setDescription('The Discord member to check').setRequired(true));
 
     // Deploy slash commands globally
     const rest = new REST({ version: '10' }).setToken(TOKEN);
@@ -187,7 +186,27 @@ client.on('interactionCreate', async interaction => {
         }
 
         const targetUser = options.getUser('user');
-        const robloxId = options.getString('roblox_id').trim();
+        
+        // Step 1: Use Bloxlink Global Lookup API to turn the tagged Discord @user into a Roblox User ID
+        let robloxId = null;
+        try {
+            const bloxlinkResponse = await axios.get(`https://api.blox.link/v4/public/guilds/${guild.id}/discord-to-roblox/${targetUser.id}`).catch(() => null);
+            if (bloxlinkResponse && bloxlinkResponse.data && bloxlinkResponse.data.robloxId) {
+                robloxId = bloxlinkResponse.data.robloxId;
+            } else {
+                // Fallback attempt to the standard global route if server-specific cache misses
+                const globalBloxlink = await axios.get(`https://api.blox.link/v4/public/users/${targetUser.id}`).catch(() => null);
+                if (globalBloxlink && globalBloxlink.data && globalBloxlink.data.primaryAccount) {
+                    robloxId = globalBloxlink.data.primaryAccount;
+                }
+            }
+        } catch (err) {
+            console.error('Bloxlink lookup failure:', err);
+        }
+
+        if (!robloxId) {
+            return safeReply(`❌ Could not look up a linked Roblox account for <@${targetUser.id}>. Make sure they are verified with Bloxlink!`);
+        }
         
         // Shirt IDs to check in specific order
         const targetShirts = ['76577848556585', '107008580501030', '86085110129460'];
