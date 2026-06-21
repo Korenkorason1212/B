@@ -113,11 +113,11 @@ client.once('ready', async () => {
         .addStringOption(option => option.setName('trigger').setDescription('The exact phrase to look out for').setRequired(true))
         .addStringOption(option => option.setName('response').setDescription('The message the bot should reply with').setRequired(true));
 
-    // Define /check command
+    // Define /check command (Changed to String Option for Roblox Username input)
     const checkCommand = new SlashCommandBuilder()
         .setName('check')
-        .setDescription('Checks if a tagged member owns specific Roblox shirts.')
-        .addUserOption(option => option.setName('user').setDescription('The Discord member to check').setRequired(true));
+        .setDescription('Checks if a Roblox user owns specific shirts.')
+        .addStringOption(option => option.setName('roblox_user').setDescription('The Roblox username to check').setRequired(true));
 
     // Deploy slash commands globally
     const rest = new REST({ version: '10' }).setToken(TOKEN);
@@ -185,27 +185,25 @@ client.on('interactionCreate', async interaction => {
             return safeReply('❌ You do not have the required role or higher permissions to use this command.');
         }
 
-        const targetUser = options.getUser('user');
+        const robloxUsername = options.getString('roblox_user').trim();
         
-        // Step 1: Use Bloxlink Global Lookup API to turn the tagged Discord @user into a Roblox User ID
+        // Step 1: Use official Roblox API to look up the Roblox User ID from the username string input
         let robloxId = null;
         try {
-            const bloxlinkResponse = await axios.get(`https://api.blox.link/v4/public/guilds/${guild.id}/discord-to-roblox/${targetUser.id}`).catch(() => null);
-            if (bloxlinkResponse && bloxlinkResponse.data && bloxlinkResponse.data.robloxId) {
-                robloxId = bloxlinkResponse.data.robloxId;
-            } else {
-                // Fallback attempt to the standard global route if server-specific cache misses
-                const globalBloxlink = await axios.get(`https://api.blox.link/v4/public/users/${targetUser.id}`).catch(() => null);
-                if (globalBloxlink && globalBloxlink.data && globalBloxlink.data.primaryAccount) {
-                    robloxId = globalBloxlink.data.primaryAccount;
-                }
+            const robloxUserLookup = await axios.post('https://users.roblox.com/v1/usernames/users', {
+                usernames: [robloxUsername],
+                excludeBannedUsers: false
+            }).catch(() => null);
+
+            if (robloxUserLookup && robloxUserLookup.data && robloxUserLookup.data.data && robloxUserLookup.data.data.length > 0) {
+                robloxId = robloxUserLookup.data.data[0].id;
             }
         } catch (err) {
-            console.error('Bloxlink lookup failure:', err);
+            console.error('Roblox username lookup failure:', err);
         }
 
         if (!robloxId) {
-            return safeReply(`❌ Could not look up a linked Roblox account for <@${targetUser.id}>. Make sure they are verified with Bloxlink!`);
+            return safeReply(`❌ Could not find a valid Roblox account matching the username \`${robloxUsername}\`. Check your spelling!`);
         }
         
         // Shirt IDs to check in specific order
@@ -228,7 +226,7 @@ client.on('interactionCreate', async interaction => {
             const checkEmbed = new EmbedBuilder()
                 .setColor(0x3498DB) // Blue
                 .setTitle('Roblox Inventory Check')
-                .setDescription(`Checking shirt ownership for user <@${targetUser.id}> (Roblox ID: \`${robloxId}\`):\n\n${ownershipResults.join('\n')}`)
+                .setDescription(`Checking shirt ownership for Roblox account **${robloxUsername}** (ID: \`${robloxId}\`):\n\n${ownershipResults.join('\n')}`)
                 .setTimestamp();
 
             if (interaction.deferred || interaction.replied) {
