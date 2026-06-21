@@ -113,7 +113,7 @@ client.once('ready', async () => {
         .addStringOption(option => option.setName('trigger').setDescription('The exact phrase to look out for').setRequired(true))
         .addStringOption(option => option.setName('response').setDescription('The message the bot should reply with').setRequired(true));
 
-    // Define /check command (Updated: Only requires the Discord User target now)
+    // Define /check command
     const checkCommand = new SlashCommandBuilder()
         .setName('check')
         .setDescription('Checks if a tagged member owns specific Roblox shirts.')
@@ -231,8 +231,9 @@ client.on('interactionCreate', async interaction => {
                 .setDescription(`Checking shirt ownership for user <@${targetUser.id}> (Roblox ID: \`${robloxId}\`):\n\n${ownershipResults.join('\n')}`)
                 .setTimestamp();
 
+            // FIXED: Added ephemeral: true flag to editReply so it stays private to the command user only
             if (interaction.deferred || interaction.replied) {
-                await interaction.editReply({ content: null, embeds: [checkEmbed] });
+                await interaction.editReply({ content: null, embeds: [checkEmbed], ephemeral: true });
             } else {
                 await interaction.reply({ embeds: [checkEmbed], ephemeral: true });
             }
@@ -258,7 +259,6 @@ client.on('interactionCreate', async interaction => {
         // Permanent backup: Write them immediately to triggers.json
         saveTriggers();
 
-        // FIX: Removed the typo 'replay' from this line
         return safeReply(`✅ Trigger updated! Whenever anyone types \`${triggerPhrase}\`, I will reply with: "${responsePhrase}". It is saved permanently.`);
     }
 
